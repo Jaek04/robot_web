@@ -3,177 +3,77 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Robot Status</title>
+<title>AnglerBot Status</title>
 <style>
-  :root {
-    --bg: #f4f5f7;
-    --card: #ffffff;
-    --text: #1c1f24;
-    --muted: #6b7280;
-    --border: #e3e6ea;
-    --track: #e9ecef;
-    --accent: #2f6fed;
-    --ok: #1f9d55;
-    --ok-bg: #e6f6ec;
-    --alert: #d9480f;
-    --alert-bg: #ffe9dd;
-    --idle: #6b7280;
-    --idle-bg: #eceef1;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #14161a;
-      --card: #1d2026;
-      --text: #e8eaed;
-      --muted: #9aa1ab;
-      --border: #2c313a;
-      --track: #2a2f37;
-      --accent: #6ea0ff;
-      --ok: #4cc38a;
-      --ok-bg: #16301f;
-      --alert: #ff8a50;
-      --alert-bg: #3a2216;
-      --idle: #9aa1ab;
-      --idle-bg: #262a31;
-    }
-  }
-  * { box-sizing: border-box; }
-  html, body { height: 100%; }
+  html { background: #000; }
   body {
     margin: 0;
-    background: var(--bg);
-    color: var(--text);
-    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    padding: 24px 16px 48px;
+    background: #000;
+    color: #fff;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 18px;
     line-height: 1.4;
   }
-  .wrap { max-width: 640px; margin: 0 auto; padding: 24px 16px 40px; }
-  header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
-  h1 { font-size: 1.25rem; margin: 0; font-weight: 650; }
-  .pill {
-    display: inline-flex; align-items: center; gap: 8px;
-    font-size: 0.8rem; padding: 4px 10px; border-radius: 999px;
-    background: var(--idle-bg); color: var(--idle);
-    white-space: nowrap;
-  }
-  .pill .dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
-  .pill.up { background: var(--ok-bg); color: var(--ok); }
-  .card {
-    background: var(--card); border: 1px solid var(--border);
-    border-radius: 14px; padding: 20px; margin-bottom: 16px;
-  }
-  .card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
-  h2 { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin: 0; font-weight: 600; }
-
-  /* Metal detector */
-  .status { display: flex; align-items: center; gap: 20px; }
-  .badge {
-    flex: none; width: 88px; height: 88px; border-radius: 50%;
-    display: grid; place-items: center; font-size: 2.2rem;
-    background: var(--idle-bg); color: var(--idle);
-    transition: background 0.2s, color 0.2s;
-  }
-  .status[data-state="clear"] .badge { background: var(--ok-bg); color: var(--ok); }
-  .status[data-state="detected"] .badge {
-    background: var(--alert-bg); color: var(--alert);
-    animation: pulse 1s ease-in-out infinite;
-  }
-  @keyframes pulse { 50% { transform: scale(1.06); } }
-  .label { font-size: 1.6rem; font-weight: 700; margin: 0; }
-  .status[data-state="clear"] .label { color: var(--ok); }
-  .status[data-state="detected"] .label { color: var(--alert); }
-  .detail { color: var(--muted); font-size: 0.9rem; margin: 4px 0 0; }
-
-  /* Meter rows (commands + sticks) */
-  .sub { margin: 14px 0 2px; font-size: 0.8rem; color: var(--muted); font-weight: 600; }
-  .sub.first { margin-top: 0; }
-  .row { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; padding: 6px 0; align-items: baseline; }
-  .row .name { font-size: 0.9rem; }
-  .row .val { font-size: 0.9rem; font-variant-numeric: tabular-nums; text-align: right; }
-  .row .val .delta { color: var(--muted); margin-left: 8px; display: inline-block; min-width: 3ch; text-align: right; }
-  .row.off .val { color: var(--muted); }
-  .meter { grid-column: 1 / -1; position: relative; height: 10px; background: var(--track); border-radius: 5px; overflow: hidden; }
-  .meter .fill { position: absolute; top: 0; bottom: 0; background: var(--accent); transition: left 0.08s, width 0.08s; }
-  .meter::after { content: ""; position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--card); }
-  .row.off .meter .fill { width: 0 !important; }
-
-  /* Controller chips */
-  .chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
-  .chip { font-size: 0.8rem; padding: 4px 10px; border-radius: 999px; background: var(--idle-bg); color: var(--idle); }
-  .chip.on { background: var(--ok-bg); color: var(--ok); font-weight: 600; }
-  .chip.warn.on { background: var(--alert-bg); color: var(--alert); }
-  .note { color: var(--muted); font-size: 0.85rem; margin: 10px 0 0; min-height: 1.2em; }
-
-  /* Event log */
-  ul#log { list-style: none; margin: 0; padding: 0; max-height: 260px; overflow-y: auto; }
-  ul#log li { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-top: 1px solid var(--border); font-size: 0.9rem; }
-  ul#log li:first-child { border-top: none; }
-  ul#log .time { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
-  .empty { color: var(--muted); font-size: 0.9rem; margin: 0; }
-  footer { color: var(--muted); font-size: 0.8rem; text-align: center; margin-top: 8px; word-break: break-all; }
-
-  @media (prefers-reduced-motion: reduce) {
-    .status[data-state="detected"] .badge { animation: none; }
-    .meter .fill { transition: none; }
-  }
+  main { max-width: 720px; margin: 0 auto; }
+  h1 { font-size: 28px; font-weight: bold; margin: 0 0 4px; }
+  h2 { font-size: 20px; font-weight: bold; margin: 32px 0 10px; padding-bottom: 4px; border-bottom: 1px solid #fff; }
+  p { margin: 6px 0; }
+  table { border-collapse: collapse; }
+  td, th { padding: 1px 24px 1px 0; text-align: left; font-weight: normal; vertical-align: baseline; }
+  td.num { text-align: right; padding-right: 0; min-width: 5ch; }
+  .cols { display: flex; flex-wrap: wrap; gap: 8px 64px; align-items: flex-start; }
+  .cols td.num { padding: 1px 6px; min-width: 7ch; }
+  .cols td.hi { background: #fff; color: #000; }
+  th { font-weight: bold; padding-bottom: 4px; }
+  .on { background: #fff; color: #000; padding: 0 6px; }
+  .note { font-style: italic; }
+  ul { list-style: none; margin: 0; padding: 0; max-height: 280px; overflow-y: auto; }
+  li { display: flex; justify-content: space-between; gap: 24px; padding: 2px 0; }
+  footer { margin-top: 40px; font-size: 14px; word-break: break-all; }
 </style>
 </head>
 <body>
-<div class="wrap">
-  <header>
-    <h1>Robot status</h1>
-    <span id="conn" class="pill"><span class="dot"></span><span id="conn-text">Connecting…</span></span>
-  </header>
+<main>
+  <h1>AnglerBot Status</h1>
+  <p>Rosbridge: <span id="conn">Connecting...</span> (<span id="url"></span>)</p>
 
-  <section class="card">
-    <div class="card-head"><h2>Metal detector</h2></div>
-    <div id="status" class="status" data-state="idle">
-      <div id="badge" class="badge">?</div>
-      <div>
-        <p id="label" class="label">Waiting for data</p>
-        <p id="detail" class="detail">Connecting to rosbridge…</p>
-      </div>
-    </div>
-  </section>
+  <h2>Metal Detector</h2>
+  <p><span id="metal">No Data</span> <span id="metal-detail"></span></p>
 
-  <section class="card">
-    <div class="card-head">
-      <h2>Commanded pulse widths</h2>
-      <span id="cmd-pill" class="pill"><span class="dot"></span><span id="cmd-pill-text">Waiting</span></span>
-    </div>
-    <p class="sub first">Steering servos (front)</p>
-    <div id="rows-steer"></div>
-    <p class="sub">Drive ESCs (rear)</p>
-    <div id="rows-drive"></div>
-    <p id="cmd-note" class="note"></p>
-  </section>
+  <h2>Commanded pulse widths (&micro;s)</h2>
+  <table>
+    <tr><td>Steering, front left</td><td id="cmd0" class="num">-</td></tr>
+    <tr><td>Steering, front right</td><td id="cmd1" class="num">-</td></tr>
+    <tr><td>Drive, rear left</td><td id="cmd2" class="num">-</td></tr>
+    <tr><td>Drive, rear right</td><td id="cmd3" class="num">-</td></tr>
+  </table>
+  <p id="cmd-note" class="note"></p>
 
-  <section class="card">
-    <div class="card-head">
-      <h2>Xbox controller</h2>
-      <span id="joy-pill" class="pill"><span class="dot"></span><span id="joy-pill-text">Waiting</span></span>
-    </div>
-    <div class="chips">
-      <span id="chip-enable" class="chip">RB · enable</span>
-      <span id="chip-turbo" class="chip warn">LB · turbo</span>
-    </div>
-    <div id="rows-joy"></div>
-    <p id="joy-note" class="note"></p>
-  </section>
+  <h2>Xbox Controller</h2>
+  <p>Status: <span id="joy-status">No Data</span></p>
+  <div class="cols">
+    <table>
+      <thead><tr><th colspan="2">Buttons</th></tr></thead>
+      <tbody id="joy-buttons"></tbody>
+    </table>
+    <table>
+      <thead><tr><th colspan="2">Analog</th></tr></thead>
+      <tbody id="joy-analog"></tbody>
+    </table>
+  </div>
 
-  <section class="card">
-    <div class="card-head"><h2>Events</h2></div>
-    <ul id="log"></ul>
-    <p id="log-empty" class="empty">No events yet.</p>
-  </section>
+  <h2>Events</h2>
+  <ul id="log"></ul>
+  <p id="log-empty" class="note">No events yet.</p>
 
   <footer id="footer"></footer>
-</div>
+</main>
 
 <script src="https://cdn.jsdelivr.net/npm/roslib@1.4.1/build/roslib.min.js"></script>
 <script>
-  // ---- Configuration ----------------------------------------------------
-  // rosbridge location. By default: the machine that served this page.
-  // Override with e.g.  index.html?host=192.168.1.50&port=9090
+  // rosbridge location
+  // index.html?host=192.168.1.50&port=9090
   const params = new URLSearchParams(window.location.search);
   const HOST = params.get('host') || window.location.hostname || 'localhost';
   const PORT = params.get('port') || '9090';
@@ -184,100 +84,26 @@
     cmds: params.get('cmds') || '/car_hardware/commands_us',
     joy: params.get('joy') || '/joy',
   };
+  const STALE_MS = 2000; // no message for this long, treat the feed as gone
 
-  // Keep these in sync with xbox_custom.config.yaml (teleop_twist_joy).
-  const num = (key, dflt) => {
-    const v = params.get(key);
-    return v !== null && v !== '' && !isNaN(Number(v)) ? Number(v) : dflt;
-  };
-  const JOY = {
-    enableButton: num('enable', 7),   // RB
-    turboButton: num('turbo', 6),     // LB
-    axisLinear: num('lin', 1),        // left stick Y
-    axisAngular: num('ang', 2),       // right stick X
-  };
-
-  const NEUTRAL_US = 1500;   // centered servo / stopped ESC (matches the plugin's defaults)
-  const SPAN_US = 500;       // bar full-scale: +/-500 us around neutral
-  const STALE_MS = 2000;     // no message for this long => treat the feed as gone
-
-  // ---- DOM --------------------------------------------------------------
   const $ = (id) => document.getElementById(id);
   const el = {
-    conn: $('conn'), connText: $('conn-text'),
-    status: $('status'), badge: $('badge'), label: $('label'), detail: $('detail'),
-    cmdPill: $('cmd-pill'), cmdPillText: $('cmd-pill-text'), cmdNote: $('cmd-note'),
-    rowsSteer: $('rows-steer'), rowsDrive: $('rows-drive'),
-    joyPill: $('joy-pill'), joyPillText: $('joy-pill-text'), joyNote: $('joy-note'),
-    chipEnable: $('chip-enable'), chipTurbo: $('chip-turbo'), rowsJoy: $('rows-joy'),
+    conn: $('conn'), url: $('url'),
+    metal: $('metal'), metalDetail: $('metal-detail'),
+    cmd: [$('cmd0'), $('cmd1'), $('cmd2'), $('cmd3')], cmdNote: $('cmd-note'),
+    joyStatus: $('joy-status'), joyButtons: $('joy-buttons'), joyAnalog: $('joy-analog'),
     log: $('log'), logEmpty: $('log-empty'), footer: $('footer'),
   };
-  el.footer.textContent = WS_URL + '  ·  ' + TOPICS.metal + '  ·  ' + TOPICS.cmds + '  ·  ' + TOPICS.joy;
+  el.url.textContent = WS_URL;
+  el.footer.textContent = TOPICS.metal + '   ' + TOPICS.cmds + '   ' + TOPICS.joy;
 
-  function setPill(pill, textEl, up, text) {
-    pill.classList.toggle('up', up);
-    textEl.textContent = text;
-  }
-
-  // One labeled value with a bar that grows left/right from the center.
-  function buildRow(container, name) {
-    const row = document.createElement('div');
-    row.className = 'row off';
-    const n = document.createElement('span');
-    n.className = 'name';
-    n.textContent = name;
-    const v = document.createElement('span');
-    v.className = 'val';
-    const main = document.createElement('span');
-    const delta = document.createElement('span');
-    delta.className = 'delta';
-    v.append(main, delta);
-    const meter = document.createElement('div');
-    meter.className = 'meter';
-    const fill = document.createElement('div');
-    fill.className = 'fill';
-    meter.append(fill);
-    row.append(n, v, meter);
-    container.append(row);
-    const api = {
-      set(text, deltaText, frac) {
-        row.classList.remove('off');
-        main.textContent = text;
-        delta.textContent = deltaText;
-        const f = Math.max(-1, Math.min(1, frac));
-        if (f >= 0) { fill.style.left = '50%'; fill.style.width = (f * 50) + '%'; }
-        else { fill.style.left = (50 + f * 50) + '%'; fill.style.width = (-f * 50) + '%'; }
-      },
-      clear() {
-        row.classList.add('off');
-        main.textContent = '—';
-        delta.textContent = '';
-      },
-    };
-    api.clear();
-    return api;
-  }
-
-  const cmdRows = [
-    buildRow(el.rowsSteer, 'Front left'),
-    buildRow(el.rowsSteer, 'Front right'),
-    buildRow(el.rowsDrive, 'Rear left'),
-    buildRow(el.rowsDrive, 'Rear right'),
-  ]; // order matches /car_hardware/commands_us: [steerL, steerR, escL, escR]
-  const joyRows = {
-    lin: buildRow(el.rowsJoy, 'Left stick Y · drive'),
-    ang: buildRow(el.rowsJoy, 'Right stick X · steer'),
-  };
-
-  // ---- State ------------------------------------------------------------
   let connected = false;
-  const seen = { metal: 0, cmds: 0, joy: 0 };   // timestamp of last message per feed
-  let lastValue = null;       // metal: last debounced value received
+  const seen = { metal: 0, cmds: 0, joy: 0 }; // time of last message per topic
+  let lastValue = null;
   let lastChange = null;
   let joyPresent = false;
 
   const fmtTime = (d) => d.toLocaleTimeString();
-  const fmtAxis = (x) => (x >= 0 ? '+' : '') + x.toFixed(2);
 
   function addLogEntry(text) {
     el.logEmpty.style.display = 'none';
@@ -285,19 +111,17 @@
     const a = document.createElement('span');
     a.textContent = text;
     const b = document.createElement('span');
-    b.className = 'time';
     b.textContent = fmtTime(new Date());
     li.append(a, b);
     el.log.prepend(li);
     while (el.log.children.length > 50) el.log.lastChild.remove();
   }
 
-  // ---- Metal detector ---------------------------------------------------
-  function renderMetal(state, label, detail, badgeChar) {
-    el.status.dataset.state = state;
-    el.label.textContent = label;
-    el.detail.textContent = detail;
-    el.badge.textContent = badgeChar;
+  // metal detector
+  function setMetal(text, detail, highlight) {
+    el.metal.textContent = text;
+    el.metal.classList.toggle('on', !!highlight);
+    el.metalDetail.textContent = detail || '';
   }
 
   function onMetal(msg) {
@@ -307,115 +131,176 @@
       const first = lastValue === null;
       lastValue = detected;
       lastChange = new Date();
-      addLogEntry(first ? (detected ? 'Metal detected (first reading)' : 'Clear (first reading)')
-                        : (detected ? 'Metal detected' : 'Clear'));
+      addLogEntry((detected ? 'Metal detected' : 'Clear') + (first ? ' (first reading)' : ''));
     }
-    if (detected) renderMetal('detected', 'Metal detected', 'Since ' + fmtTime(lastChange), '!');
-    else renderMetal('clear', 'No metal', 'Clear since ' + fmtTime(lastChange), '✓');
+    if (detected) setMetal('DETECTED', 'since ' + fmtTime(lastChange), true);
+    else setMetal('clear', 'since ' + fmtTime(lastChange), false);
   }
 
-  // ---- Commanded pulse widths -------------------------------------------
+  // pulse widths to arduino
   function onCmds(msg) {
     seen.cmds = Date.now();
     const d = msg.data || [];
-    cmdRows.forEach((row, i) => {
-      const v = d[i];
-      if (typeof v !== 'number') { row.clear(); return; }
-      const delta = v - NEUTRAL_US;
-      row.set(v + ' µs', (delta > 0 ? '+' : '') + delta, delta / SPAN_US);
+    el.cmd.forEach((cell, i) => {
+      cell.textContent = typeof d[i] === 'number' ? String(d[i]) : '\u2014';
     });
-    setPill(el.cmdPill, el.cmdPillText, true, 'Live');
-    el.cmdNote.textContent = 'What the controller_manager is sending to the Arduino. ' + NEUTRAL_US + ' = centered / stopped.';
+    el.cmdNote.textContent = '';
   }
 
-  function clearCmds(pillText, note) {
-    cmdRows.forEach((r) => r.clear());
-    setPill(el.cmdPill, el.cmdPillText, false, pillText);
-    el.cmdNote.textContent = note;
+  function clearCmds(note) {
+    el.cmd.forEach((cell) => { cell.textContent = '\u2014'; });
+    el.cmdNote.textContent = note || '';
   }
 
-  // ---- Xbox controller --------------------------------------------------
-  function clearJoy(pillText, note) {
-    el.chipEnable.classList.remove('on');
-    el.chipTurbo.classList.remove('on');
-    joyRows.lin.clear();
-    joyRows.ang.clear();
-    setPill(el.joyPill, el.joyPillText, false, pillText);
-    el.joyNote.textContent = note;
+  // controller
+  // Names for this controller's /joy layout. LB (6) and RB (7) are confirmed on this
+  // robot; the rest is the usual layout for an Xbox Series controller. Anything not
+  // listed shows up as "button N" / "axis N". Edit here if a name is wrong.
+  const BUTTON_NAMES = {
+    0: 'A', 
+    1: 'B', 
+    3: 'X', 
+    4: 'Y',
+    6: 'LB', 
+    7: 'RB',
+    10: 'View', 
+    11: 'Menu', 
+    12: 'Xbox',
+    13: 'LSB', 
+    14: 'RSB', 
+    15: 'Share',
+  };
+  const AXIS_NAMES = {
+    0: 'LS (X)', 
+    1: 'LS(Y)',
+    2: 'RS (X)', 
+    3: 'RS (Y)',
+    4: 'RT', 
+    5: 'LT',
+  };
+  // The D-pad arrives as two axes; it is shown here as four 1/0 buttons.
+  const DPAD_X_AXIS = 6; // +1 = left, -1 = right
+  const DPAD_Y_AXIS = 7; // +1 = up, -1 = down
+
+  function fmtAnalog(v) {
+    if (typeof v !== 'number') return '\u2014';
+    if (Math.abs(v) < 0.0003) v = 0;   // clean input
+    return v.toFixed(3);
+  }
+
+  function controlRows(msg) {
+    const axes = msg.axes || [];
+    const buttons = (msg.buttons || []).map((v, i) => ({
+      name: BUTTON_NAMES[i] || 'button ' + i,
+      text: v ? '1' : '0',
+      hi: !!v,
+    }));
+    const dx = axes[DPAD_X_AXIS];
+    const dy = axes[DPAD_Y_AXIS];
+    if (typeof dx === 'number' && typeof dy === 'number') {
+      [
+        ['D-pad up', dy > 0.5],
+        ['D-pad down', dy < -0.5],
+        ['D-pad left', dx > 0.5],
+        ['D-pad right', dx < -0.5],
+      ].forEach(([name, on]) => buttons.push({ name: name, text: on ? '1' : '0', hi: on }));
+    }
+    const analog = [];
+    axes.forEach((v, i) => {
+      if (i === DPAD_X_AXIS || i === DPAD_Y_AXIS) return;
+      analog.push({ name: AXIS_NAMES[i] || 'axis ' + i, text: fmtAnalog(v), hi: false });
+    });
+    return { buttons: buttons, analog: analog };
+  }
+
+  function renderRows(tbody, rows) {
+    const key = rows.map((r) => r.name).join('|');
+    if (tbody.dataset.key !== key) {
+      tbody.textContent = '';
+      rows.forEach((r) => {
+        const tr = document.createElement('tr');
+        const name = document.createElement('td');
+        name.textContent = r.name;
+        const val = document.createElement('td');
+        val.className = 'num';
+        tr.append(name, val);
+        tbody.append(tr);
+      });
+      tbody.dataset.key = key;
+    }
+    rows.forEach((r, i) => {
+      const cell = tbody.children[i].lastChild;
+      cell.textContent = r.text;
+      cell.classList.toggle('hi', r.hi);
+    });
+  }
+
+  function clearJoy(status) {
+    el.joyButtons.textContent = '';
+    el.joyAnalog.textContent = '';
+    el.joyButtons.dataset.key = '';
+    el.joyAnalog.dataset.key = '';
+    el.joyStatus.textContent = status;
   }
 
   function setJoyPresent(present) {
     if (present === joyPresent) return;
     joyPresent = present;
-    addLogEntry(present ? 'Controller connected' : 'Controller lost');
-    if (present) setPill(el.joyPill, el.joyPillText, true, 'Connected');
-    else clearJoy('Not detected', 'No messages on ' + TOPICS.joy + '. Is the controller on, and is joy_node running?');
+    addLogEntry(present ? 'Controller connected!' : 'Controller lost...');
+    if (present) el.joyStatus.textContent = 'receiving';
+    else clearJoy('no data (is the controller on, and is joy_node running?)');
   }
 
   function onJoy(msg) {
     seen.joy = Date.now();
     setJoyPresent(true);
-    const buttons = msg.buttons || [];
-    const axes = msg.axes || [];
-    const enabled = !!buttons[JOY.enableButton];
-    el.chipEnable.classList.toggle('on', enabled);
-    el.chipTurbo.classList.toggle('on', !!buttons[JOY.turboButton]);
-
-    const lin = axes[JOY.axisLinear];
-    const ang = axes[JOY.axisAngular];
-    if (typeof lin === 'number') joyRows.lin.set(fmtAxis(lin), '', lin); else joyRows.lin.clear();
-    // ROS Joy convention: stick pushed left = positive. Flip the bar so it moves the way the stick does.
-    if (typeof ang === 'number') joyRows.ang.set(fmtAxis(ang), '', -ang); else joyRows.ang.clear();
-
-    el.joyNote.textContent = enabled ? 'Driving enabled.' : 'Hold RB to enable driving.';
+    const rows = controlRows(msg);
+    renderRows(el.joyButtons, rows.buttons);
+    renderRows(el.joyAnalog, rows.analog);
   }
 
-  // ---- Connection state -------------------------------------------------
+  // connection
   function resetAll() {
     seen.metal = seen.cmds = seen.joy = 0;
     lastValue = null;
     joyPresent = false;
-    renderMetal('idle', 'Not connected', 'Retrying rosbridge at ' + WS_URL + '…', '?');
-    clearCmds('Unknown', '');
-    clearJoy('Unknown', '');
+    setMetal('Not Connected', '', false);
+    clearCmds('');
+    clearJoy('Not Connected');
   }
 
   function setConnected(up) {
     connected = up;
-    el.conn.classList.toggle('up', up);
-    el.connText.textContent = up ? 'Connected' : 'Disconnected';
+    el.conn.textContent = up ? 'connected' : 'disconnected';
     if (up) {
-      renderMetal('idle', 'Waiting for data', 'Connected. Waiting for ' + TOPICS.metal + '…', '?');
-      clearCmds('Waiting', '');
-      clearJoy('Waiting', '');
+      setMetal('no data', 'waiting for ' + TOPICS.metal, false);
+      clearCmds('waiting for ' + TOPICS.cmds);
+      clearJoy('waiting for ' + TOPICS.joy);
     } else {
       resetAll();
     }
   }
 
-  // Once a second or so: notice feeds that have gone quiet.
+  // topics that have gone quiet
   setInterval(() => {
     if (!connected) return;
     const now = Date.now();
     const fresh = (t) => t > 0 && now - t < STALE_MS;
 
-    if (!fresh(seen.metal)) {
-      if (seen.metal > 0) {
-        lastValue = null;   // so the next reading is logged as a fresh start
-        renderMetal('idle', 'No data', 'Connected, but nothing on ' + TOPICS.metal + '. Is metal_detector_node running?', '?');
-      }
+    if (!fresh(seen.metal) && seen.metal > 0) {
+      lastValue = null;
+      setMetal('no data', 'nothing on ' + TOPICS.metal + ' (check metal_detector_node)', false);
     }
-    if (!fresh(seen.cmds)) {
-      clearCmds(seen.cmds > 0 ? 'No data' : 'Waiting',
-        'Nothing on ' + TOPICS.cmds + '. Is the controller_manager running with the updated car_hardware plugin?');
+    if (!fresh(seen.cmds) && seen.cmds > 0) {
+      clearCmds('nothing on ' + TOPICS.cmds + ' (check controller_manager)');
     }
     if (!fresh(seen.joy)) {
       if (joyPresent) setJoyPresent(false);
-      else clearJoy('Not detected', 'No messages on ' + TOPICS.joy + '. Is the controller on, and is joy_node running?');
+      else if (seen.joy > 0) clearJoy('no data (check if controller is on)');
     }
   }, 500);
 
-  // ---- rosbridge --------------------------------------------------------
+  // rosbridge
   function subscribe(ros, name, messageType, callback, throttleMs) {
     const opts = { ros: ros, name: name, messageType: messageType };
     if (throttleMs) opts.throttle_rate = throttleMs;
@@ -428,7 +313,7 @@
       setConnected(true);
       subscribe(ros, TOPICS.metal, 'std_msgs/msg/Bool', onMetal);
       subscribe(ros, TOPICS.cmds, 'std_msgs/msg/Int32MultiArray', onCmds, 100);
-      subscribe(ros, TOPICS.joy, 'sensor_msgs/msg/Joy', onJoy, 100);
+      subscribe(ros, TOPICS.joy, 'sensor_msgs/msg/Joy', onJoy, 50);
     });
     ros.on('error', () => { /* 'close' follows; handled there */ });
     ros.on('close', () => {
@@ -438,9 +323,7 @@
   }
 
   if (typeof ROSLIB === 'undefined') {
-    renderMetal('idle', 'Library failed to load',
-      'Could not load roslib.min.js from the CDN. Download it and host it next to this page.', '!');
-    el.connText.textContent = 'Error';
+    el.conn.textContent = 'error: could not load roslib.min.js from the CDN';
   } else {
     resetAll();
     connect();
