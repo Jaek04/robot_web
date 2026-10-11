@@ -41,12 +41,12 @@
   <h2>Metal Detector</h2>
   <p><span id="metal">No Data</span> <span id="metal-detail"></span></p>
 
-  <h2>Commanded pulse widths (&micro;s)</h2>
+  <h2>Pulse Widths Sent to Arduino (us)</h2>
   <table>
-    <tr><td>Steering, front left</td><td id="cmd0" class="num">-</td></tr>
-    <tr><td>Steering, front right</td><td id="cmd1" class="num">-</td></tr>
-    <tr><td>Drive, rear left</td><td id="cmd2" class="num">-</td></tr>
-    <tr><td>Drive, rear right</td><td id="cmd3" class="num">-</td></tr>
+    <tr><td>Front Left Steer</td><td id="cmd0" class="num">-</td></tr>
+    <tr><td>Front Right Steer</td><td id="cmd1" class="num">-</td></tr>
+    <tr><td>Rear Left Drive</td><td id="cmd2" class="num">-</td></tr>
+    <tr><td>Rear Right Drive</td><td id="cmd3" class="num">-</td></tr>
   </table>
   <p id="cmd-note" class="note"></p>
 
@@ -63,7 +63,7 @@
     </table>
   </div>
 
-  <h2>Events</h2>
+  <h2>Event Log</h2>
   <ul id="log"></ul>
   <p id="log-empty" class="note">No events yet.</p>
 
@@ -105,6 +105,8 @@
 
   const fmtTime = (d) => d.toLocaleTimeString();
 
+  const LOG_MAX = 50; // maximum number of log entries before removing some
+
   function addLogEntry(text) {
     el.logEmpty.style.display = 'none';
     const li = document.createElement('li');
@@ -114,7 +116,7 @@
     b.textContent = fmtTime(new Date());
     li.append(a, b);
     el.log.prepend(li);
-    while (el.log.children.length > 50) el.log.lastChild.remove();
+    while (el.log.children.length > LOG_MAX) el.log.lastChild.remove();
   }
 
   // metal detector
@@ -131,10 +133,10 @@
       const first = lastValue === null;
       lastValue = detected;
       lastChange = new Date();
-      addLogEntry((detected ? 'Metal detected' : 'Clear') + (first ? ' (first reading)' : ''));
+      addLogEntry(detected ? '[METAL DETECTOR] Metal Detected!' : '[METAL DETECTOR] All clear.');
     }
-    if (detected) setMetal('DETECTED', 'since ' + fmtTime(lastChange), true);
-    else setMetal('clear', 'since ' + fmtTime(lastChange), false);
+    if (detected) setMetal('METAL DETECTED');
+    else setMetal('No metal detected', 'since ' + fmtTime(lastChange), false);
   }
 
   // pulse widths to arduino
@@ -153,9 +155,6 @@
   }
 
   // controller
-  // Names for this controller's /joy layout. LB (6) and RB (7) are confirmed on this
-  // robot; the rest is the usual layout for an Xbox Series controller. Anything not
-  // listed shows up as "button N" / "axis N". Edit here if a name is wrong.
   const BUTTON_NAMES = {
     0: 'A', 
     1: 'B', 
@@ -172,13 +171,13 @@
   };
   const AXIS_NAMES = {
     0: 'LS (X)', 
-    1: 'LS(Y)',
+    1: 'LS (Y)',
     2: 'RS (X)', 
     3: 'RS (Y)',
     4: 'RT', 
     5: 'LT',
   };
-  // The D-pad arrives as two axes; it is shown here as four 1/0 buttons.
+ 
   const DPAD_X_AXIS = 6; // +1 = left, -1 = right
   const DPAD_Y_AXIS = 7; // +1 = up, -1 = down
 
@@ -191,8 +190,8 @@
   function controlRows(msg) {
     const axes = msg.axes || [];
     const buttons = (msg.buttons || []).map((v, i) => ({
-      name: BUTTON_NAMES[i] || 'button ' + i,
-      text: v ? '1' : '0',
+      name: BUTTON_NAMES[i] || ' ',
+      text: BUTTON_NAMES[i] ? (v ? '1' : '0') : " ",
       hi: !!v,
     }));
     const dx = axes[DPAD_X_AXIS];
@@ -246,8 +245,8 @@
   function setJoyPresent(present) {
     if (present === joyPresent) return;
     joyPresent = present;
-    addLogEntry(present ? 'Controller connected!' : 'Controller lost...');
-    if (present) el.joyStatus.textContent = 'receiving';
+    addLogEntry(present ? '[CONTROLLER] Controller connected!' : '[CONTROLLER] Controller lost :(');
+    if (present) el.joyStatus.textContent = 'Connected!';
     else clearJoy('no data (is the controller on, and is joy_node running?)');
   }
 
@@ -273,9 +272,9 @@
     connected = up;
     el.conn.textContent = up ? 'connected' : 'disconnected';
     if (up) {
-      setMetal('no data', 'waiting for ' + TOPICS.metal, false);
-      clearCmds('waiting for ' + TOPICS.cmds);
-      clearJoy('waiting for ' + TOPICS.joy);
+      setMetal('no data', 'Waiting on ' + TOPICS.metal + '...', false);
+      clearCmds('Waiting on ' + TOPICS.cmds + '...');
+      clearJoy('Waiting on ' + TOPICS.joy + '...');
     } else {
       resetAll();
     }
