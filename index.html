@@ -28,6 +28,7 @@
   th { font-weight: bold; padding-bottom: 4px; }
   .on { background: #fff; color: #000; padding: 0 6px; }
   .note { font-style: italic; }
+  #camera { display: block; width: 100%; max-width: 640px; min-height: 120px; background: #000; border: 1px solid #fff; }
   ul { list-style: none; margin: 0; padding: 0; max-height: 280px; overflow-y: auto; }
   li { display: flex; justify-content: space-between; gap: 24px; padding: 2px 0; }
   footer { margin-top: 40px; font-size: 14px; word-break: break-all; }
@@ -37,7 +38,11 @@
 <main>
   <h1>AnglerBot Status</h1>
   <p>Rosbridge: <span id="conn">Connecting...</span> (<span id="url"></span>)</p>
-
+  
+  <h2>Camera</h2>
+  <img id="camera" alt="Camera feed">
+  <p id="camera-note" class="note"></p>
+  
   <h2>Metal Detector</h2>
   <p><span id="metal">No Data</span> <span id="metal-detail"></span></p>
 
@@ -89,6 +94,7 @@
   const $ = (id) => document.getElementById(id);
   const el = {
     conn: $('conn'), url: $('url'),
+    camera: $('camera'), cameraNote: $('camera-note'),
     metal: $('metal'), metalDetail: $('metal-detail'),
     cmd: [$('cmd0'), $('cmd1'), $('cmd2'), $('cmd3')], cmdNote: $('cmd-note'),
     joyStatus: $('joy-status'), joyButtons: $('joy-buttons'), joyAnalog: $('joy-analog'),
@@ -96,6 +102,31 @@
   };
   el.url.textContent = WS_URL;
   el.footer.textContent = TOPICS.metal + '   ' + TOPICS.cmds + '   ' + TOPICS.joy;
+
+  // camera
+  const CAMERA_HOST = params.get('camhost') || HOST;
+  const CAMERA_PORT = params.get('camport') || '8080';
+  const CAMERA_TOPIC = params.get('camera') || '/image_raw';
+  const CAMERA_URL = 'http://' + CAMERA_HOST + ':' + CAMERA_PORT +
+    '/stream?topic=' + CAMERA_TOPIC + '&type=mjpeg&width=640&height=360&quality=30';
+
+  function startCamera() {
+    el.cameraNote.textContent = 'Connecting to camera...';
+    el.camera.src = CAMERA_URL + '&t=' + Date.now(); // t= forces a fresh connection on retry
+  }
+  el.camera.addEventListener('error', () => {
+    cameraUp = false;
+    el.cameraNote.textContent = 'No camera stream (check web_video_server and the camera node)';
+    setTimeout(startCamera, 3000);
+  });
+
+  let cameraUp = false;
+  setInterval(() => {
+    const up = el.camera.naturalWidth > 0; // 0 until the first frame arrives
+    if (up) el.cameraNote.textContent = '';
+    if (up && !cameraUp) addLogEntry('[CAMERA] Camera connected!');
+    cameraUp = up;
+  }, 1000);
 
   let connected = false;
   const seen = { metal: 0, cmds: 0, joy: 0 }; // time of last message per topic
@@ -135,7 +166,7 @@
       lastChange = new Date();
       addLogEntry(detected ? '[METAL DETECTOR] Metal Detected!' : '[METAL DETECTOR] All clear.');
     }
-    if (detected) setMetal('METAL DETECTED');
+    if (detected) setMetal('METAL DETECTED', '', true);
     else setMetal('No metal detected', 'since ' + fmtTime(lastChange), false);
   }
 
@@ -272,7 +303,7 @@
     connected = up;
     el.conn.textContent = up ? 'connected' : 'disconnected';
     if (up) {
-      setMetal('no data', 'Waiting on ' + TOPICS.metal + '...', false);
+      setMetal('Waiting on ' + TOPICS.metal + '...', '', false);
       clearCmds('Waiting on ' + TOPICS.cmds + '...');
       clearJoy('Waiting on ' + TOPICS.joy + '...');
     } else {
@@ -320,6 +351,8 @@
       setTimeout(connect, 2000);
     });
   }
+
+  startCamera();
 
   if (typeof ROSLIB === 'undefined') {
     el.conn.textContent = 'error: could not load roslib.min.js from the CDN';
