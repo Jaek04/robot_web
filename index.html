@@ -45,7 +45,7 @@
   
   <h2>Metal Detector</h2>
   <p><span id="metal">No Data</span> <span id="metal-detail"></span></p>
-
+  <p>Power: <span id="metal-power">No Data</span></p>
   <h2>Pulse Widths Sent to Arduino (us)</h2>
   <table>
     <tr><td>Front Left Steer</td><td id="cmd0" class="num">-</td></tr>
@@ -86,6 +86,7 @@
 
   const TOPICS = {
     metal: params.get('metal') || '/metal_detected',
+    power: params.get('power') || '/metal_detector_power',
     cmds: params.get('cmds') || '/car_hardware/commands_us',
     joy: params.get('joy') || '/joy',
   };
@@ -96,6 +97,7 @@
     conn: $('conn'), url: $('url'),
     camera: $('camera'), cameraNote: $('camera-note'),
     metal: $('metal'), metalDetail: $('metal-detail'),
+    metalPower: $('metal-power'),
     cmd: [$('cmd0'), $('cmd1'), $('cmd2'), $('cmd3')], cmdNote: $('cmd-note'),
     joyStatus: $('joy-status'), joyButtons: $('joy-buttons'), joyAnalog: $('joy-analog'),
     log: $('log'), logEmpty: $('log-empty'), footer: $('footer'),
@@ -129,9 +131,10 @@
   }, 1000);
 
   let connected = false;
-  const seen = { metal: 0, cmds: 0, joy: 0 }; // time of last message per topic
+  const seen = { metal: 0, power: 0, cmds: 0, joy: 0 }; // time of last message per topic
   let lastValue = null;
   let lastChange = null;
+  let lastPower = null;
   let joyPresent = false;
 
   const fmtTime = (d) => d.toLocaleTimeString();
@@ -170,6 +173,15 @@
     else setMetal('No metal detected', 'since ' + fmtTime(lastChange), false);
   }
 
+  function onPower(msg) {
+    seen.power = Date.now();
+    const on = !!msg.data;
+    el.metalPower.textContent = on ? 'On' : 'Off';
+    if (lastPower !== null && on !== lastPower) {
+      addLogEntry(on ? '[METAL DETECTOR] Powered on.' : '[METAL DETECTOR] Powered off.');
+    }
+    lastPower = on;
+  }
   // pulse widths to arduino
   function onCmds(msg) {
     seen.cmds = Date.now();
@@ -291,8 +303,10 @@
 
   // connection
   function resetAll() {
-    seen.metal = seen.cmds = seen.joy = 0;
+    seen.metal = seen.power = seen.cmds = seen.joy = 0;
+    el.metalPower.textContent = 'Not Connected';
     lastValue = null;
+    lastPower = null;
     joyPresent = false;
     setMetal('Not Connected', '', false);
     clearCmds('');
@@ -303,6 +317,7 @@
     connected = up;
     el.conn.textContent = up ? 'connected' : 'disconnected';
     if (up) {
+      el.metalPower.textContent = 'No Data';
       setMetal('Waiting on ' + TOPICS.metal + '...', '', false);
       clearCmds('Waiting on ' + TOPICS.cmds + '...');
       clearJoy('Waiting on ' + TOPICS.joy + '...');
@@ -320,6 +335,9 @@
     if (!fresh(seen.metal) && seen.metal > 0) {
       lastValue = null;
       setMetal('no data', 'nothing on ' + TOPICS.metal + ' (check metal_detector_node)', false);
+    }
+    if (!fresh(seen.power) && seen.power > 0) {
+      el.metalPower.textContent = 'No Data';
     }
     if (!fresh(seen.cmds) && seen.cmds > 0) {
       clearCmds('nothing on ' + TOPICS.cmds + ' (check controller_manager)');
@@ -342,6 +360,7 @@
     ros.on('connection', () => {
       setConnected(true);
       subscribe(ros, TOPICS.metal, 'std_msgs/msg/Bool', onMetal);
+      subscribe(ros, TOPICS.power, 'std_msgs/msg/Bool', onPower);
       subscribe(ros, TOPICS.cmds, 'std_msgs/msg/Int32MultiArray', onCmds, 100);
       subscribe(ros, TOPICS.joy, 'sensor_msgs/msg/Joy', onJoy, 50);
     });
