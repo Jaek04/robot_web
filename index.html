@@ -55,6 +55,14 @@
   </table>
   <p id="cmd-note" class="note"></p>
 
+  <h2>Arm Pulse Widths Sent to ESP32 (us)</h2>
+  <table>
+    <tr><td>Elbow</td><td id="arm0" class="num">-</td></tr>
+    <tr><td>Wrist</td><td id="arm1" class="num">-</td></tr>
+    <tr><td>Claw</td><td id="arm2" class="num">-</td></tr>
+  </table>
+  <p id="arm-note" class="note"></p>
+
   <h2>Xbox Controller</h2>
   <p>Status: <span id="joy-status">No Data</span></p>
   <div class="cols">
@@ -87,6 +95,7 @@
   const TOPICS = {
     metal: params.get('metal') || '/metal_detected',
     power: params.get('power') || '/metal_detector_power',
+    arm: params.get('arm') || '/arm_hardware/commands_us',
     cmds: params.get('cmds') || '/car_hardware/commands_us',
     joy: params.get('joy') || '/joy',
   };
@@ -101,6 +110,7 @@
     cmd: [$('cmd0'), $('cmd1'), $('cmd2'), $('cmd3')], cmdNote: $('cmd-note'),
     joyStatus: $('joy-status'), joyButtons: $('joy-buttons'), joyAnalog: $('joy-analog'),
     log: $('log'), logEmpty: $('log-empty'), footer: $('footer'),
+    arm: [$('arm0'), $('arm1'), $('arm2')], armNote: $('arm-note'),
   };
   el.url.textContent = WS_URL;
   el.footer.textContent = TOPICS.metal + '   ' + TOPICS.cmds + '   ' + TOPICS.joy;
@@ -131,7 +141,7 @@
   }, 1000);
 
   let connected = false;
-  const seen = { metal: 0, power: 0, cmds: 0, joy: 0 }; // time of last message per topic
+  const seen = { metal: 0, power: 0, arm: 0, cmds: 0, joy: 0 }; // time of last message per topic
   let lastValue = null;
   let lastChange = null;
   let lastPower = null;
@@ -195,6 +205,21 @@
   function clearCmds(note) {
     el.cmd.forEach((cell) => { cell.textContent = '\u2014'; });
     el.cmdNote.textContent = note || '';
+  }
+  
+  // arm pulse widths to esp32
+  function onArm(msg) {
+    seen.arm = Date.now();
+    const d = msg.data || [];
+    el.arm.forEach((cell, i) => {
+      cell.textContent = typeof d[i] === 'number' ? String(d[i]) : '\u2014';
+    });
+    el.armNote.textContent = '';
+  }
+
+  function clearArm(note) {
+    el.arm.forEach((cell) => { cell.textContent = '\u2014'; });
+    el.armNote.textContent = note || '';
   }
 
   // controller
@@ -303,13 +328,14 @@
 
   // connection
   function resetAll() {
-    seen.metal = seen.power = seen.cmds = seen.joy = 0;
+    seen.metal = seen.power = seen.arm = seen.cmds = seen.joy = 0;
     el.metalPower.textContent = 'Not Connected';
     lastValue = null;
     lastPower = null;
     joyPresent = false;
     setMetal('Not Connected', '', false);
     clearCmds('');
+    clearArm('');
     clearJoy('Not Connected');
   }
 
@@ -320,6 +346,7 @@
       el.metalPower.textContent = 'No Data';
       setMetal('Waiting on ' + TOPICS.metal + '...', '', false);
       clearCmds('Waiting on ' + TOPICS.cmds + '...');
+      clearArm('Waiting on ' + TOPICS.arm + '...');
       clearJoy('Waiting on ' + TOPICS.joy + '...');
     } else {
       resetAll();
@@ -346,6 +373,9 @@
       if (joyPresent) setJoyPresent(false);
       else if (seen.joy > 0) clearJoy('no data (check if controller is on)');
     }
+    if (!fresh(seen.arm) && seen.arm > 0) {
+      clearArm('nothing on ' + TOPICS.arm + ' (arm disconnected or still booting)');
+    }
   }, 500);
 
   // rosbridge
@@ -363,8 +393,9 @@
       subscribe(ros, TOPICS.power, 'std_msgs/msg/Bool', onPower);
       subscribe(ros, TOPICS.cmds, 'std_msgs/msg/Int32MultiArray', onCmds, 100);
       subscribe(ros, TOPICS.joy, 'sensor_msgs/msg/Joy', onJoy, 50);
+      subscribe(ros, TOPICS.arm, 'std_msgs/msg/Int32MultiArray', onArm, 100);
     });
-    ros.on('error', () => { /* 'close' follows; handled there */ });
+    ros.on('error', () => {});
     ros.on('close', () => {
       setConnected(false);
       setTimeout(connect, 2000);
